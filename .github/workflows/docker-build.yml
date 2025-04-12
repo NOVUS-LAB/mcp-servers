@@ -18,7 +18,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: NOVUS-LAB/mcp-servers
+  IMAGE_NAME: novus-lab/mcp-servers
 
 jobs:
   build-and-push:
