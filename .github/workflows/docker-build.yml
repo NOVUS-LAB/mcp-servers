@@ -48,13 +48,16 @@ jobs:
             # e.g., src/time/Dockerfile -> time
             # e.g., src/Google-Maps/Dockerfile -> google-maps
             service_name=$(dirname "$dockerfile" | sed 's|src/||' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+            service_dir=$(dirname "$dockerfile")
             
             echo "Building and pushing image for service: $service_name"
+            echo "Building from directory: $service_dir"
             
-            # Build image
+            # Build image with the correct context
             docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
                         -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
-                        -f "$dockerfile" .
+                        -f "$dockerfile" \
+                        "$service_dir"
             
             # Only push if this is not a PR
             if [ "${{ github.event_name }}" != "pull_request" ]; then
