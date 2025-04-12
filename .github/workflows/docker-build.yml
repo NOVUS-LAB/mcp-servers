@@ -1,0 +1,51 @@
+name: Docker Build and Push
+
+on:
+  push:
+    paths:
+      - 'src/**/Dockerfile'
+      - 'src/**/package.json'
+      - 'tsconfig.json'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find Dockerfiles
+        id: find-dockerfiles
+        run: |
+          echo "dockerfiles=$(find src -name Dockerfile | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker images
+        run: |
+          for dockerfile in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
+            # Extract service name from path
+            service_name=$(echo $dockerfile | sed 's|src/\(.*\)/Dockerfile|\1|')
+            
+            # Build and push image
+            docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
+                        -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
+                        -f $dockerfile .
+            
+            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest
+            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }}
+          done 
