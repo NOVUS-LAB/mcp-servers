@@ -40,23 +40,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Find Dockerfiles
-        id: find-dockerfiles
-        run: |
-          echo "dockerfiles=$(find src -name Dockerfile | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
-
       - name: Build and push Docker images
         run: |
-          for dockerfile in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
+          # Find all Dockerfiles and process them one by one
+          find src -name Dockerfile | while read -r dockerfile; do
             # Extract service name from path (e.g., src/time/Dockerfile -> time)
-            service_name=$(echo $dockerfile | sed 's|src/\(.*\)/Dockerfile|\1|')
+            service_name=$(dirname "$dockerfile" | sed 's|src/||')
             
             echo "Building and pushing image for service: $service_name"
             
             # Build image
             docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
                         -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
-                        -f $dockerfile .
+                        -f "$dockerfile" .
             
             # Only push if this is not a PR
             if [ "${{ github.event_name }}" != "pull_request" ]; then
