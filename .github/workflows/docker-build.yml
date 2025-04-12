@@ -59,6 +59,12 @@ jobs:
               docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
                           -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
                           -f "$dockerfile" .
+            # For services that copy to /project
+            elif grep -q "COPY src/.* /project" "$dockerfile"; then
+              echo "Using full project context for $service_name (project directory)"
+              docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
+                          -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
+                          -f "$dockerfile" .
             else
               # For services that only need their own directory
               echo "Using service directory context for $service_name"
