@@ -53,11 +53,19 @@ jobs:
             echo "Building and pushing image for service: $service_name"
             echo "Building from directory: $service_dir"
             
-            # Build image with the correct context
-            docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
-                        -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
-                        -f "$dockerfile" \
-                        "$service_dir"
+            # For services that need the entire project context
+            if grep -q "COPY src/.* /app" "$dockerfile"; then
+              echo "Using full project context for $service_name"
+              docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
+                          -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
+                          -f "$dockerfile" .
+            else
+              # For services that only need their own directory
+              echo "Using service directory context for $service_name"
+              docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
+                          -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
+                          -f "$dockerfile" "$service_dir"
+            fi
             
             # Only push if this is not a PR
             if [ "${{ github.event_name }}" != "pull_request" ]; then
