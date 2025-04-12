@@ -44,8 +44,10 @@ jobs:
         run: |
           # Find all Dockerfiles and process them one by one
           find src -name Dockerfile | while read -r dockerfile; do
-            # Extract service name from path (e.g., src/time/Dockerfile -> time)
-            service_name=$(dirname "$dockerfile" | sed 's|src/||')
+            # Extract service name from path and convert to lowercase
+            # e.g., src/time/Dockerfile -> time
+            # e.g., src/Google-Maps/Dockerfile -> google-maps
+            service_name=$(dirname "$dockerfile" | sed 's|src/||' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
             
             echo "Building and pushing image for service: $service_name"
             
