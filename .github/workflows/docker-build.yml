@@ -1,16 +1,24 @@
 name: Docker Build and Push
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'src/**/Dockerfile'
       - 'src/**/package.json'
       - 'tsconfig.json'
-  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/**/Dockerfile'
+      - 'src/**/package.json'
+      - 'tsconfig.json'
+  repository_dispatch:
+    types: [sync]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: NOVUS-LAB/mcp-servers
 
 jobs:
   build-and-push:
@@ -22,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -38,14 +48,19 @@ jobs:
       - name: Build and push Docker images
         run: |
           for dockerfile in ${{ steps.find-dockerfiles.outputs.dockerfiles }}; do
-            # Extract service name from path
+            # Extract service name from path (e.g., src/time/Dockerfile -> time)
             service_name=$(echo $dockerfile | sed 's|src/\(.*\)/Dockerfile|\1|')
             
-            # Build and push image
+            echo "Building and pushing image for service: $service_name"
+            
+            # Build image
             docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest \
                         -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }} \
                         -f $dockerfile .
             
-            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest
-            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }}
+            # Only push if this is not a PR
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:latest
+              docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service_name:${{ github.sha }}
+            fi
           done 
